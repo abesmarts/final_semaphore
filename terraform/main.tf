@@ -75,7 +75,7 @@ resource "docker_image" "ubuntu" {
 resource "docker_container" "ubuntu_monitor" {
   count    = 2
   name     = "ubuntu-monitor-${count.index + 1}"
-  image    = docker_image.ubuntu
+  image    = docker_image.ubuntu:24.04
   hostname = "monitor-${count.index + 1}"
   restart  = "unless-stopped"
 
