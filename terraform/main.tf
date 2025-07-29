@@ -26,7 +26,7 @@ resource "docker_network" "monitoring_network" {
   
   labels {
     label = "infrastructure-monitoring"
-    environment = "development"
+    value = "development"
   }
 }
 
