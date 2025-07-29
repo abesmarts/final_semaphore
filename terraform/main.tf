@@ -1,58 +1,111 @@
-# OpenTofu/Terraform configuration for virtual machine provisioning
 terraform {
-  required_version = ">= 1.0"
   required_providers {
     docker = {
       source  = "kreuzwerker/docker"
       version = "~> 3.0"
     }
   }
+  required_version = ">= 1.0"
 }
 
-# Configure Docker provider
 provider "docker" {
   host = "unix:///var/run/docker.sock"
 }
 
-# Create a custom network for monitoring infrastructure
+# --- Variables (declared inline for self-containment) ---
+
+variable "ubuntu_instance_count" {
+  description = "Number of Ubuntu monitoring containers to launch"
+  type        = number
+  default     = 2
+}
+
+variable "logstash_host" {
+  description = "Logstash host (for env injection)"
+  type        = string
+  default     = "logstash"
+}
+
+variable "logstash_port" {
+  description = "Logstash port (for env injection)"
+  type        = string
+  default     = "5000"
+}
+
+# --- Network ---
+
 resource "docker_network" "monitoring_network" {
-  name = "monitoring-network"
+  name   = "monitoring-network"
   driver = "bridge"
-  
+
   ipam_config {
     subnet  = "172.20.0.0/16"
     gateway = "172.20.0.1"
   }
-  
-  labels {
-    label = "infrastructure-monitoring"
-    value = "development"
+
+  labels = {
+    project     = "infrastructure-monitoring"
+    environment = "development"
   }
 }
 
-# Ubuntu container for system monitoring
+# --- Volumes ---
+
+resource "docker_volume" "monitoring_data" {
+  name = "monitoring-data"
+  labels = {
+    project = "infrastructure-monitoring"
+    type    = "data-storage"
+  }
+}
+
+resource "docker_volume" "shared_scripts" {
+  name = "shared-scripts"
+  labels = {
+    project = "infrastructure-monitoring"
+    type    = "script-storage"
+  }
+}
+
+# --- Ubuntu Image ---
+
+resource "docker_image" "ubuntu" {
+  name         = "ubuntu:24.04"
+  keep_locally = true
+}
+
+# --- Ubuntu Containers ---
+
 resource "docker_container" "ubuntu_monitor" {
-  count = var.ubuntu_instance_count
-  
-  name  = "ubuntu-monitor-${count.index + 1}"
-  image = docker_image.ubuntu.image_id
-  
-  # Keep container running
+  count    = var.ubuntu_instance_count
+  name     = "ubuntu-monitor-${count.index + 1}"
+  image    = docker_image.ubuntu.latest
+  hostname = "monitor-${count.index + 1}"
+  restart  = "unless-stopped"
+
   command = ["tail", "-f", "/dev/null"]
-  
+
+  memory      = 512 * 1024 * 1024       # 512 MB in bytes
+  memory_swap = 1024 * 1024 * 1024      # 1 GB in bytes
+
   # Network configuration
   networks_advanced {
     name         = docker_network.monitoring_network.name
     ipv4_address = "172.20.1.${count.index + 10}"
   }
-  
-  # Volume mounts for script sharing
-  volumes {
-    host_path      = "${path.cwd}/../python-scripts"
-    container_path = "/opt/monitoring-scripts"
-    read_only      = true
+
+  # Volume mounts (use named Docker volumes AND a bind mount for scripts)
+  volumes = [
+    docker_volume.monitoring_data.name       # Example: can add :/data if you want a target path
+  ]
+
+  mounts {
+    target = "/opt/monitoring-scripts"
+    source = abspath("${path.module}/../python-scripts")
+    type   = "bind"
+    read_only = true
   }
-  
+
   # Environment variables
   env = [
     "LOGSTASH_HOST=${var.logstash_host}",
@@ -60,27 +113,14 @@ resource "docker_container" "ubuntu_monitor" {
     "INSTANCE_ID=${count.index + 1}",
     "ENVIRONMENT=development"
   ]
-  
-  # Resource limits
-  memory = 512  # 512 MB
-  memory_swap = 1024  # 1 GB swap
-  
-  # Labels for identification
-  labels {
-    label = "project"
-    value = "infrastructure-monitoring"
+
+  # Standard Docker labels (simple key-values)
+  labels = {
+    project  = "infrastructure-monitoring"
+    role     = "system-monitor"
+    instance = "${count.index + 1}"
   }
-  
-  labels {
-    label = "role"
-    value = "system-monitor"
-  }
-  
-  labels {
-    label = "instance"
-    value = "${count.index + 1}"
-  }
-  
+
   # Health check
   healthcheck {
     test     = ["CMD", "curl", "-f", "http://localhost:8080/health"]
@@ -88,48 +128,20 @@ resource "docker_container" "ubuntu_monitor" {
     timeout  = "10s"
     retries  = 3
   }
-  
-  # Restart policy
-  restart = "unless-stopped"
 }
 
-# Pull Ubuntu image
-resource "docker_image" "ubuntu" {
-  name = "ubuntu:24.04"
-  keep_locally = true
-}
+# --- Outputs ---
 
-# Create monitoring data volume
-resource "docker_volume" "monitoring_data" {
-  name = "monitoring-data"
-  
-  labels {
-    label = "infrastructure-monitoring"
-    value   = "data-storage"
-  }
-}
-
-# Create shared scripts volume
-resource "docker_volume" "shared_scripts" {
-  name = "shared-scripts"
-  
-  labels {
-    label = "infrastructure-monitoring"
-    value = "script-storage"
-  }
-}
-
-# Output important information
 output "ubuntu_instances" {
-  description = "Information about created Ubuntu monitoring instances"
+  description = "Info about Ubuntu monitoring containers"
   value = {
     count = length(docker_container.ubuntu_monitor)
     instances = {
-      for i, container in docker_container.ubuntu_monitor : 
+      for i, c in docker_container.ubuntu_monitor :
       "instance-${i + 1}" => {
-        name = container.name
-        id   = container.id
-        ip_address = container.networks_advanced[0].ipv4_address
+        name      = c.name
+        id        = c.id
+        ip_address = c.networks_advanced[0].ip_address
       }
     }
   }
@@ -138,10 +150,9 @@ output "ubuntu_instances" {
 output "network_info" {
   description = "Monitoring network information"
   value = {
-    name = docker_network.monitoring_network.name
-    id   = docker_network.monitoring_network.id
-    subnet = docker_network.monitoring_network.ipam_config[0].subnet
+    name    = docker_network.monitoring_network.name
+    id      = docker_network.monitoring_network.id
+    subnet  = docker_network.monitoring_network.ipam_config[0].subnet
     gateway = docker_network.monitoring_network.ipam_config[0].gateway
   }
 }
-
