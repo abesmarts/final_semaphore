@@ -103,7 +103,7 @@ resource "docker_image" "ubuntu" {
 resource "docker_volume" "monitoring_data" {
   name = "monitoring-data"
   
-  labels = {
+  labels {
     project = "infrastructure-monitoring"
     type    = "data-storage"
   }
@@ -113,7 +113,7 @@ resource "docker_volume" "monitoring_data" {
 resource "docker_volume" "shared_scripts" {
   name = "shared-scripts"
   
-  labels = {
+  labels {
     project = "infrastructure-monitoring"
     type    = "script-storage"
   }
