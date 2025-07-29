@@ -1,8 +1,8 @@
 ---
 - name: Setup Ubuntu System for Monitoring
   hosts: all
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
   
   vars:
     ubuntu_packages:
@@ -30,7 +30,7 @@
   tasks:
     - name: Update apt package cache
       apt:
-        update_cache: yes
+        update_cache: true
         cache_valid_time: 3600
       tags: ['system']
     
@@ -38,7 +38,7 @@
       apt:
         name: "{{ ubuntu_packages }}"
         state: present
-        update_cache: yes
+        update_cache: true
       tags: ['system']
     
     - name: Install Python packages
@@ -48,12 +48,25 @@
         executable: pip3
       tags: ['python']
     
+    - name: Create Python virtual environment
+      command: python3 -m venv /opt/monitoring/venv
+      args: 
+        creates: /opt/monitoring/venv/bin/activate 
+      become: true
+
+    - name: Install required Python packages in venv
+      pip:
+        requirements: /opt/monitoring/scripts/requirements.txt 
+        virtualenv: /opt/monitoring/venv 
+        virtualenv_python: python3
+      become: true
+    
     - name: Create monitoring user
       user:
         name: monitor
         comment: "System Monitoring User"
         shell: /bin/bash
-        create_home: yes
+        create_home: true
         home: /home/monitor
       tags: ['users']
     
@@ -94,7 +107,7 @@
     - name: Enable and start systemd-timesyncd
       systemd:
         name: systemd-timesyncd
-        enabled: yes
+        enabled: true
         state: started
       tags: ['system']
     
@@ -133,7 +146,16 @@
           IP Address: {{ ansible_default_ipv4.address }}
       tags: ['info']
 
+    - name: Copy web-login-automation.py to the vm
+      copy:
+        src: ../python-scripts/web-login-automation.py
+        dest: /opt/monitoring/scripts/web-login-automation.py
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+      become: true
+
   handlers:
     - name: reload systemd
       systemd:
-        daemon_reload: yes
+        daemon_reload: true

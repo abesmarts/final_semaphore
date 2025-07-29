@@ -52,5 +52,5 @@ var/
 .installed.cfg
 *.egg
 
-
+.*
 *.boltdb
