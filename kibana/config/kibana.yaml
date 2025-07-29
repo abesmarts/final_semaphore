@@ -1,0 +1,10 @@
+server.name: kibana
+server.host: 0.0.0.0
+server.port: 5601
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+monitoring.ui.container.elasticsearch.enabled: true
+xpack.encryptedSavedObjects.encryptionKey: "a7a6311933d3503b89bc2dbc36572c33a7a6311933d3503b89bc2dbc36572c33"
+xpack.security.encryptionKey: "b7a6311933d3503b89bc2dbc36572c33b7a6311933d3503b89bc2dbc36572c33"
+xpack.reporting.encryptionKey: "c7a6311933d3503b89bc2dbc36572c33c7a6311933d3503b89bc2dbc36572c33"
+telemetry.enabled: false
+newsfeed.enabled: false

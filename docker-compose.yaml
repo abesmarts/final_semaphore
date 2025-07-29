@@ -1,0 +1,138 @@
+services:
+  # Elasticsearch - Data storage and search engine
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.0.4
+    container_name: elasticsearch
+    environment:
+      - node.name=elasticsearch
+      - cluster.name=es-docker-cluster
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - .elasticsearch/data:/usr/share/elasticsearch/data
+      - .elasticsearch/config/elasticsearch.yaml:/usr/share/elasticsearch/config/elasticsearch.yaml:ro
+      
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - monitoring-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Kibana - Data visualization and dashboard interface
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.0.4
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana
+      - SERVER_HOST=0.0.0.0
+    volumes:
+      - .kibana/config/kibana.yaml:/usr/share/kibana/config/kibana.yaml:ro
+    ports:
+      - "5601:5601"
+    networks:
+      - monitoring-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Logstash - Data processing pipeline (main data processor)
+  logstash:
+    image: docker.elastic.co/logstash/logstash:9.0.4
+    container_name: logstash
+    environment:
+      - "LS_JAVA_OPTS=-Xmx1g -Xms1g"
+    volumes:
+      - .logstash/config/logstash.conf:/usr/share/logstash/config/logstash.conf:ro
+      - .logstash/config/logstash.yaml:/usr/share/logstash/config/logstash.yaml:ro
+    ports:
+      - "5044:5044"  # Beats input (receives from Filebeat)
+      - "9600:9600"  # API port
+      - "5000:5000/tcp"  # HTTP input (receives from Python scripts)
+      - "5000:5000/udp"
+    networks:
+      - monitoring-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9600/_node/stats || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+   # Filebeat - Lightweight log shipper
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:9.0.4
+    container_name: filebeat
+    user: root
+    command: filebeat -e --strict.perms=false
+    environment:
+      - setup.kibana.host=kibana:5601
+      - output.logstash.hosts=["logstash:5044"]
+    volumes:
+      - .filebeat/config/filebeat.yaml:/usr/share/filebeat/filebeat.yaml:ro
+      - .filebeat/data:/usr/share/filebeat/data
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log:/var/log:ro
+    networks:
+      - monitoring-network
+    depends_on:
+      logstash:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Semaphore UI - Automation management interface
+  semaphore:
+    image: semaphoreui/semaphore:v2.15.4
+    container_name: semaphore-ui
+    environment:
+      - SEMAPHORE_DB_DIALECT=bolt
+      - SEMAPHORE_ADMIN_PASSWORD=SecurePassword123!
+      - SEMAPHORE_ADMIN_NAME=Admin
+      - SEMAPHORE_ADMIN_EMAIL=admin@yourcompany.com
+      - SEMAPHORE_ADMIN=admin
+      - SEMAPHORE_ACCESS_KEY_ENCRYPTION=pOadmaxkaFP6FF0MM4qLU6nEa9TkfrfllJP+VnEqN0o=
+    volumes:
+      - .semaphore/config:/etc/semaphore
+      - .semaphore/ansible:/var/lib/semaphore
+      - .terraform:/var/lib/semaphore/terraform
+      - .python-scripts:/var/lib/semaphore/scripts
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "3000:3000"
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+
+networks:
+  monitoring-network:
+    driver: bridge
+
+volumes:
+  elasticsearch-data:
+    driver: local
+  semaphore-data:
+    driver: local
+  filebeat-data:
+    driver: local
+  logstash-data:
+    driver: local

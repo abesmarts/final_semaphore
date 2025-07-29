@@ -1,0 +1,61 @@
+---
+all:
+  children:
+    monitoring_nodes:
+      hosts:
+        ubuntu-monitor-1:
+          ansible_host: 172.20.1.10
+          ansible_user: ubuntu
+          ansible_connection: docker
+          container_name: ubuntu-monitor-1
+        ubuntu-monitor-2:
+          ansible_host: 172.20.1.11
+          ansible_user: ubuntu
+          ansible_connection: docker
+          container_name: ubuntu-monitor-2
+      vars:
+        # Logstash connection (Python scripts send here)
+        logstash_host: logstash
+        logstash_port: 5000
+        
+        # Filebeat connection (log collection)
+        filebeat_host: filebeat
+        filebeat_port: 5044
+        
+        # Monitoring configuration
+        monitoring_user: ubuntu
+        environment: development
+        project_name: infrastructure-monitoring
+        
+        # Web automation settings
+        website_url: "https://example.com/login"
+        login_username: "your_username"
+        login_password: "your_password"
+
+    logstash_nodes:
+      hosts:
+        logstash:
+          ansible_host: logstash
+          ansible_connection: docker
+          container_name: logstash
+
+    filebeat_nodes:
+      hosts:
+        filebeat:
+          ansible_host: filebeat
+          ansible_connection: docker
+          container_name: filebeat
+
+    elasticsearch_nodes:
+      hosts:
+        elasticsearch:
+          ansible_host: elasticsearch
+          ansible_connection: docker
+          container_name: elasticsearch
+
+    kibana_nodes:
+      hosts:
+        kibana:
+          ansible_host: kibana
+          ansible_connection: docker
+          container_name: kibana

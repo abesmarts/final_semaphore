@@ -1,0 +1,37 @@
+# Logstash main configuration file
+node.name: "logstash-processor"
+path.data: /usr/share/logstash/data
+path.logs: /usr/share/logstash/logs
+
+# Pipeline configuration
+pipeline.workers: 2
+pipeline.batch.size: 125
+pipeline.batch.delay: 50
+
+# HTTP API settings
+http.host: "0.0.0.0"
+http.port: 9600
+
+# X-Pack monitoring (disabled for development)
+xpack.monitoring.enabled: false
+xpack.management.enabled: false
+
+# Logging configuration
+log.level: info
+log.format: plain
+
+# Dead letter queue settings
+dead_letter_queue.enable: true
+dead_letter_queue.max_bytes: 1gb
+
+# Config reload settings
+config.reload.automatic: true
+config.reload.interval: 3s
+
+# Queue settings
+queue.type: memory
+queue.max_bytes: 1gb
+queue.checkpoint.writes: 1024
+
+# Security settings (disabled for development)
+xpack.security.enabled: false

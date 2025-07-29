@@ -1,0 +1,139 @@
+---
+- name: Setup Ubuntu System for Monitoring
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    ubuntu_packages:
+      - python3
+      - python3-pip
+      - python3-venv
+      - curl
+      - wget
+      - git
+      - htop
+      - vim
+      - unzip
+      - software-properties-common
+      - apt-transport-https
+      - ca-certificates
+      - gnupg
+      - lsb-release
+    
+    python_packages:
+      - psutil
+      - requests
+      - selenium
+      - schedule
+  
+  tasks:
+    - name: Update apt package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      tags: ['system']
+    
+    - name: Install system packages
+      apt:
+        name: "{{ ubuntu_packages }}"
+        state: present
+        update_cache: yes
+      tags: ['system']
+    
+    - name: Install Python packages
+      pip:
+        name: "{{ python_packages }}"
+        state: present
+        executable: pip3
+      tags: ['python']
+    
+    - name: Create monitoring user
+      user:
+        name: monitor
+        comment: "System Monitoring User"
+        shell: /bin/bash
+        create_home: yes
+        home: /home/monitor
+      tags: ['users']
+    
+    - name: Create monitoring directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: monitor
+        group: monitor
+        mode: '0755'
+      loop:
+        - /home/monitor/scripts
+        - /home/monitor/logs
+        - /var/log/monitoring
+      tags: ['directories']
+    
+    - name: Set up log rotation for monitoring logs
+      copy:
+        content: |
+          /var/log/monitoring/*.log {
+              daily
+              missingok
+              rotate 7
+              compress
+              delaycompress
+              notifempty
+              copytruncate
+          }
+        dest: /etc/logrotate.d/monitoring
+        mode: '0644'
+      tags: ['logging']
+    
+    - name: Configure timezone
+      timezone:
+        name: "{{ ansible_timezone | default('UTC') }}"
+      tags: ['system']
+    
+    - name: Enable and start systemd-timesyncd
+      systemd:
+        name: systemd-timesyncd
+        enabled: yes
+        state: started
+      tags: ['system']
+    
+    - name: Create systemd service for system monitoring
+      copy:
+        content: |
+          [Unit]
+          Description=System Monitoring Service
+          After=network.target
+          
+          [Service]
+          Type=simple
+          User=monitor
+          WorkingDirectory=/home/monitor/scripts
+          ExecStart=/usr/bin/python3 /home/monitor/scripts/system-monitor.py
+          Restart=always
+          RestartSec=60
+          Environment=LOGSTASH_HOST={{ logstash_host | default('localhost') }}
+          Environment=LOGSTASH_PORT={{ logstash_port | default('5000') }}
+          
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/system-monitor.service
+        mode: '0644'
+      notify: reload systemd
+      tags: ['services']
+    
+    - name: Display system information
+      debug:
+        msg: |
+          Ubuntu system setup completed successfully!
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Architecture: {{ ansible_architecture }}
+          Python version: {{ ansible_python_version }}
+          Hostname: {{ ansible_hostname }}
+          IP Address: {{ ansible_default_ipv4.address }}
+      tags: ['info']
+
+  handlers:
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes

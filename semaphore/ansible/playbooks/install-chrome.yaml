@@ -1,0 +1,128 @@
+---
+- name: Install Google Chrome on Ubuntu
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  tasks:
+    - name: Install prerequisites for Chrome
+      apt:
+        name:
+          - wget
+          - gnupg
+          - software-properties-common
+          - apt-transport-https
+          - ca-certificates
+        state: present
+        update_cache: yes
+      tags: ['prereqs']
+    
+    - name: Add Google Chrome GPG key
+      apt_key:
+        url: "https://dl.google.com/linux/linux_signing_key.pub"
+        state: present
+      tags: ['chrome']
+    
+    - name: Add Google Chrome repository
+      apt_repository:
+        repo: "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main"
+        state: present
+        filename: google-chrome
+      tags: ['chrome']
+    
+    - name: Update apt cache after adding Chrome repository
+      apt:
+        update_cache: yes
+      tags: ['chrome']
+    
+    - name: Install Google Chrome
+      apt:
+        name: google-chrome-stable
+        state: present
+      tags: ['chrome']
+    
+    - name: Install ChromeDriver dependencies
+      apt:
+        name:
+          - unzip
+          - curl
+        state: present
+      tags: ['chromedriver']
+    
+    - name: Get latest ChromeDriver version
+      uri:
+        url: "https://chromedriver.storage.googleapis.com/LATEST_RELEASE"
+        return_content: yes
+      register: chromedriver_version
+      tags: ['chromedriver']
+    
+    - name: Download ChromeDriver
+      get_url:
+        url: "https://chromedriver.storage.googleapis.com/{{ chromedriver_version.content }}/chromedriver_linux64.zip"
+        dest: /tmp/chromedriver.zip
+        mode: '0644'
+      tags: ['chromedriver']
+    
+    - name: Extract ChromeDriver
+      unarchive:
+        src: /tmp/chromedriver.zip
+        dest: /tmp
+        remote_src: yes
+      tags: ['chromedriver']
+    
+    - name: Move ChromeDriver to system PATH
+      copy:
+        src: /tmp/chromedriver
+        dest: /usr/local/bin/chromedriver
+        mode: '0755'
+        remote_src: yes
+      tags: ['chromedriver']
+    
+    - name: Clean up ChromeDriver download files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/chromedriver.zip
+        - /tmp/chromedriver
+      tags: ['cleanup']
+    
+    - name: Verify Chrome installation
+      command: google-chrome --version
+      register: chrome_version
+      changed_when: false
+      tags: ['verify']
+    
+    - name: Verify ChromeDriver installation
+      command: chromedriver --version
+      register: chromedriver_version_check
+      changed_when: false
+      tags: ['verify']
+    
+    - name: Display installation results
+      debug:
+        msg: |
+          Chrome installation completed successfully!
+          Chrome version: {{ chrome_version.stdout }}
+          ChromeDriver version: {{ chromedriver_version_check.stdout }}
+      tags: ['verify']
+    
+    - name: Create Chrome launcher script for headless operation
+      copy:
+        content: |
+          #!/bin/bash
+          # Chrome launcher script for headless automation
+          exec /usr/bin/google-chrome \
+            --no-sandbox \
+            --disable-dev-shm-usage \
+            --disable-gpu \
+            --headless \
+            --remote-debugging-port=9222 \
+            --disable-extensions \
+            --disable-plugins \
+            --disable-images \
+            --disable-javascript \
+            "$@"
+        dest: /usr/local/bin/chrome-headless
+        mode: '0755'
+      tags: ['scripts']

@@ -1,0 +1,6 @@
+# Core monitoring and system utilities
+psutil==5.9.6
+requests==2.31.0
+
+# Web automation and testing (Selenium will find Chrome via PATH)
+selenium==4.15.2

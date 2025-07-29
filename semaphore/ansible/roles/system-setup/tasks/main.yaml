@@ -1,0 +1,403 @@
+---
+# Enhanced system setup tasks for monitoring infrastructure with VM-based Python environment
+
+- name: Create monitoring user and directories
+  block:
+    - name: Create monitoring user
+      user:
+        name: ubuntu
+        comment: "System Monitoring User"
+        shell: /bin/bash
+        create_home: yes
+        home: /home/ubuntu
+        groups: docker
+        append: yes
+      become: yes
+
+    - name: Create monitoring directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+      loop:
+        - /opt/monitoring
+        - /opt/monitoring/scripts
+        - /opt/monitoring/scripts/shared
+        - /opt/monitoring/config
+        - /opt/monitoring/logs
+        - /opt/monitoring/data
+        - /var/log/monitoring
+      become: yes
+
+- name: Install system dependencies
+  block:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      become: yes
+
+    - name: Install required system packages
+      apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-venv
+          - python3-dev
+          - build-essential
+          - curl
+          - wget
+          - git
+          - htop
+          - vim
+          - unzip
+          - cron
+          - logrotate
+          - jq
+          - net-tools
+          - lsof
+        state: present
+      become: yes
+
+- name: Setup Python environment within VM
+  block:
+    - name: Create Python virtual environment
+      command: python3 -m venv /opt/monitoring/venv
+      args:
+        creates: /opt/monitoring/venv/bin/activate
+      become_user: ubuntu
+
+    - name: Upgrade pip in virtual environment
+      pip:
+        name: pip
+        state: latest
+        virtualenv: /opt/monitoring/venv
+      become_user: ubuntu
+
+    - name: Install Python monitoring dependencies in venv
+      pip:
+        name:
+          - psutil==5.9.6
+          - requests==2.31.0
+          - selenium==4.15.2
+          - schedule==1.2.0
+          - APScheduler==3.10.4
+          - pandas==2.1.4
+          - numpy==1.24.3
+          - python-json-logger==2.0.7
+          - colorlog==6.7.0
+          - httpx==0.25.2
+          - aiohttp==3.9.1
+          - python-dotenv==1.0.0
+          - click==8.1.7
+          - rich==13.7.0
+          - pytest==7.4.3
+          - pytest-asyncio==0.21.1
+        virtualenv: /opt/monitoring/venv
+        state: present
+      become_user: ubuntu
+
+- name: Deploy Python scripts to VM
+  block:
+    - name: Copy Python monitoring scripts
+      copy:
+        src: "{{ playbook_dir }}/../../python-scripts/{{ item }}"
+        dest: "/opt/monitoring/scripts/{{ item }}"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+      loop:
+        - "system-monitor.py"
+        - "web-login-automation.py"
+        - "shared/__init__.py"
+        - "shared/logging_config.py"
+        - "shared/filebeat_sender.py"
+      become: yes
+
+    - name: Create monitoring configuration file
+      copy:
+        content: |
+          # Monitoring Configuration
+          [filebeat]
+          host = filebeat
+          port = 5000
+          
+          [monitoring]
+          system_interval = 3600
+          web_automation_interval = 14400
+          health_check_interval = 900
+          
+          [environment]
+          name = development
+          project = infrastructure-monitoring
+          
+          [web_automation]
+          website_url = https://example.com/login
+          username = your_username
+          password = your_password
+          username_selector = input[name='username']
+          password_selector = input[name='password']
+          submit_selector = input[type='submit']
+          success_indicator = dashboard
+        dest: /opt/monitoring/config/monitoring.conf
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+      become: yes
+
+- name: Setup monitoring services
+  block:
+    - name: Create systemd service for system monitoring
+      copy:
+        content: |
+          [Unit]
+          Description=System Monitoring Service
+          After=network.target
+          Wants=network-online.target
+          
+          [Service]
+          Type=simple
+          User=ubuntu
+          Group=ubuntu
+          WorkingDirectory=/opt/monitoring/scripts
+          ExecStart=/opt/monitoring/venv/bin/python /opt/monitoring/scripts/system-monitor.py
+          Restart=always
+          RestartSec=60
+          StandardOutput=journal
+          StandardError=journal
+          SyslogIdentifier=system-monitor
+          
+          # Environment variables
+          Environment=FILEBEAT_HOST=filebeat
+          Environment=FILEBEAT_PORT=5000
+          Environment=RUN_ONCE=false
+          Environment=MONITORING_INTERVAL_HOURS=1
+          Environment=PYTHONPATH=/opt/monitoring/scripts
+          Environment=PYTHONUNBUFFERED=1
+          
+          # Security settings
+          NoNewPrivileges=true
+          PrivateTmp=true
+          ProtectKernelTunables=true
+          ProtectKernelModules=true
+          ProtectControlGroups=true
+          
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/system-monitor.service
+        mode: '0644'
+      become: yes
+      notify:
+        - reload systemd
+        - enable system-monitor
+
+    - name: Create systemd service for web automation
+      copy:
+        content: |
+          [Unit]
+          Description=Web Automation Service
+          After=network.target system-monitor.service
+          Wants=network-online.target
+          
+          [Service]
+          Type=simple
+          User=ubuntu
+          Group=ubuntu
+          WorkingDirectory=/opt/monitoring/scripts
+          ExecStart=/opt/monitoring/venv/bin/python /opt/monitoring/scripts/web-login-automation.py
+          Restart=always
+          RestartSec=300
+          StandardOutput=journal
+          StandardError=journal
+          SyslogIdentifier=web-automation
+          
+          # Environment variables
+          Environment=FILEBEAT_HOST=filebeat
+          Environment=FILEBEAT_PORT=5044
+          Environment=TARGET_WEBSITE_URL=https://example.com/login
+          Environment=LOGIN_USERNAME=your_username
+          Environment=LOGIN_PASSWORD=your_password
+          Environment=USERNAME_SELECTOR=input[name='username']
+          Environment=PASSWORD_SELECTOR=input[name='password']
+          Environment=SUBMIT_SELECTOR=input[type='submit']
+          Environment=SUCCESS_INDICATOR=dashboard
+          Environment=PYTHONPATH=/opt/monitoring/scripts
+          Environment=PYTHONUNBUFFERED=1
+          
+          # Security settings
+          NoNewPrivileges=true
+          PrivateTmp=true
+          ProtectKernelTunables=true
+          ProtectKernelModules=true
+          ProtectControlGroups=true
+          
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/web-automation.service
+        mode: '0644'
+      become: yes
+      notify:
+        - reload systemd
+        - enable web-automation
+
+    - name: Create monitoring health check service
+      copy:
+        content: |
+          [Unit]
+          Description=Monitoring Health Check Service
+          After=network.target
+          
+          [Service]
+          Type=oneshot
+          User=ubuntu
+          Group=ubuntu
+          WorkingDirectory=/opt/monitoring/scripts
+          ExecStart=/bin/bash -c 'curl -f http://filebeat:5066/stats > /dev/null 2>&1 && echo "$(date): Health check passed" >> /var/log/monitoring/health-check.log || echo "$(date): Health check failed" >> /var/log/monitoring/health-check.log'
+          StandardOutput=journal
+          StandardError=journal
+          
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/monitoring-health-check.service
+        mode: '0644'
+      become: yes
+
+    - name: Create monitoring health check timer
+      copy:
+        content: |
+          [Unit]
+          Description=Run monitoring health check every 15 minutes
+          Requires=monitoring-health-check.service
+          
+          [Timer]
+          OnCalendar=*:0/15
+          Persistent=true
+          
+          [Install]
+          WantedBy=timers.target
+        dest: /etc/systemd/system/monitoring-health-check.timer
+        mode: '0644'
+      become: yes
+      notify:
+        - reload systemd
+        - enable health-check-timer
+
+- name: Configure log rotation
+  block:
+    - name: Setup log rotation for monitoring logs
+      copy:
+        content: |
+          /var/log/monitoring/*.log {
+              daily
+              missingok
+              rotate 30
+              compress
+              delaycompress
+              notifempty
+              copytruncate
+              su ubuntu ubuntu
+              postrotate
+                  systemctl reload-or-restart system-monitor web-automation 2>/dev/null || true
+              endscript
+          }
+          
+          /opt/monitoring/logs/*.log {
+              daily
+              missingok
+              rotate 30
+              compress
+              delaycompress
+              notifempty
+              copytruncate
+              su ubuntu ubuntu
+          }
+        dest: /etc/logrotate.d/monitoring
+        mode: '0644'
+      become: yes
+
+- name: Final system configuration
+  block:
+    - name: Set proper ownership for monitoring directories
+      file:
+        path: "{{ item }}"
+        owner: ubuntu
+        group: ubuntu
+        recurse: yes
+      loop:
+        - /opt/monitoring
+        - /var/log/monitoring
+      become: yes
+
+    - name: Create monitoring environment verification script
+      copy:
+        content: |
+          #!/bin/bash
+          # Monitoring Environment Verification Script
+          
+          echo "Verifying monitoring environment setup..."
+          
+          # Check Python environment
+          if [ -f "/opt/monitoring/venv/bin/python" ]; then
+              echo "Python virtual environment exists"
+              /opt/monitoring/venv/bin/python --version
+          else
+              echo "Python virtual environment missing"
+              exit 1
+          fi
+          
+          # Check Python packages
+          echo "Checking Python packages..."
+          /opt/monitoring/venv/bin/pip list | grep -E "(psutil|requests|selenium)"
+          
+          # Check scripts
+          echo "Checking monitoring scripts..."
+          ls -la /opt/monitoring/scripts/
+          
+          # Check services
+          echo "Checking systemd services..."
+          systemctl is-enabled system-monitor.service web-automation.service 2>/dev/null || echo "Services not yet enabled"
+          
+          # Check Filebeat connectivity
+          echo "Testing Filebeat connectivity..."
+          if curl -s -f "http://filebeat:5066/stats" > /dev/null; then
+              echo "Filebeat is accessible"
+          else
+              echo "Filebeat may not be accessible yet"
+          fi
+          
+          echo "Environment verification complete!"
+        dest: /opt/monitoring/verify-setup.sh
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+      become: yes
+
+# Handlers
+- handlers:
+  - name: reload systemd
+    systemd:
+      daemon_reload: yes
+    become: yes
+
+  - name: enable system-monitor
+    systemd:
+      name: system-monitor
+      enabled: yes
+      state: started
+    become: yes
+
+  - name: enable web-automation
+    systemd:
+      name: web-automation
+      enabled: yes
+      state: started
+    become: yes
+
+  - name: enable health-check-timer
+    systemd:
+      name: monitoring-health-check.timer
+      enabled: yes
+      state: started
+    become: yes
