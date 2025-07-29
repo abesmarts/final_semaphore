@@ -24,8 +24,8 @@ resource "docker_network" "monitoring_network" {
     gateway = "172.20.0.1"
   }
   
-  labels = {
-    project = "infrastructure-monitoring"
+  labels {
+    label = "infrastructure-monitoring"
     environment = "development"
   }
 }
@@ -104,8 +104,8 @@ resource "docker_volume" "monitoring_data" {
   name = "monitoring-data"
   
   labels {
-    project = "infrastructure-monitoring"
-    type    = "data-storage"
+    label = "infrastructure-monitoring"
+    value   = "data-storage"
   }
 }
 
@@ -114,8 +114,8 @@ resource "docker_volume" "shared_scripts" {
   name = "shared-scripts"
   
   labels {
-    project = "infrastructure-monitoring"
-    type    = "script-storage"
+    label = "infrastructure-monitoring"
+    value = "script-storage"
   }
 }
 
