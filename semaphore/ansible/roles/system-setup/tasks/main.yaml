@@ -12,7 +12,7 @@
         home: /home/ubuntu
         groups: docker
         append: yes
-      become: yes
+      become: true
 
     - name: Create monitoring directories
       file:
@@ -29,7 +29,7 @@
         - /opt/monitoring/logs
         - /opt/monitoring/data
         - /var/log/monitoring
-      become: yes
+      become: true
 
 - name: Install system dependencies
   block:
@@ -37,7 +37,7 @@
       apt:
         update_cache: yes
         cache_valid_time: 3600
-      become: yes
+      become: true
 
     - name: Install required system packages
       apt:
@@ -59,7 +59,7 @@
           - net-tools
           - lsof
         state: present
-      become: yes
+      become: true
 
 - name: Setup Python environment within VM
   block:
@@ -114,7 +114,7 @@
         - "shared/__init__.py"
         - "shared/logging_config.py"
         - "shared/filebeat_sender.py"
-      become: yes
+      become: true
 
     - name: Create monitoring configuration file
       copy:
@@ -145,7 +145,7 @@
         owner: ubuntu
         group: ubuntu
         mode: '0644'
-      become: yes
+      become: true
 
 - name: Setup monitoring services
   block:
@@ -188,7 +188,7 @@
           WantedBy=multi-user.target
         dest: /etc/systemd/system/system-monitor.service
         mode: '0644'
-      become: yes
+      become: true
       notify:
         - reload systemd
         - enable system-monitor
@@ -237,7 +237,7 @@
           WantedBy=multi-user.target
         dest: /etc/systemd/system/web-automation.service
         mode: '0644'
-      become: yes
+      become: true
       notify:
         - reload systemd
         - enable web-automation
@@ -262,7 +262,7 @@
           WantedBy=multi-user.target
         dest: /etc/systemd/system/monitoring-health-check.service
         mode: '0644'
-      become: yes
+      become: true
 
     - name: Create monitoring health check timer
       copy:
@@ -279,7 +279,7 @@
           WantedBy=timers.target
         dest: /etc/systemd/system/monitoring-health-check.timer
         mode: '0644'
-      become: yes
+      become: true
       notify:
         - reload systemd
         - enable health-check-timer
@@ -315,7 +315,7 @@
           }
         dest: /etc/logrotate.d/monitoring
         mode: '0644'
-      become: yes
+      become: true
 
 - name: Final system configuration
   block:
@@ -328,7 +328,7 @@
       loop:
         - /opt/monitoring
         - /var/log/monitoring
-      become: yes
+      become: true
 
     - name: Create monitoring environment verification script
       copy:
@@ -372,32 +372,32 @@
         owner: ubuntu
         group: ubuntu
         mode: '0755'
-      become: yes
+      become: true
 
 # Handlers
 - handlers:
   - name: reload systemd
     systemd:
       daemon_reload: yes
-    become: yes
+    become: true
 
   - name: enable system-monitor
     systemd:
       name: system-monitor
       enabled: yes
       state: started
-    become: yes
+    become: true
 
   - name: enable web-automation
     systemd:
       name: web-automation
       enabled: yes
       state: started
-    become: yes
+    become: true
 
   - name: enable health-check-timer
     systemd:
       name: monitoring-health-check.timer
       enabled: yes
       state: started
-    become: yes
+    become: true
