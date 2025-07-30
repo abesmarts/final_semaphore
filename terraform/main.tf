@@ -59,6 +59,6 @@ resource "docker_container" "ansible_vm1" {
 }
 
 # Create Docker network
-resource "docker_network" "monitoring-network" {
-  name = "monitoring-network"
-}
+#resource "docker_network" "monitoring-network" {
+ # name = "monitoring-network"
+#}
