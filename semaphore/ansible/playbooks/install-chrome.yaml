@@ -1,8 +1,8 @@
 ---
 - name: Install Google Chrome on Ubuntu
   hosts: ubuntu_vms
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
   
   tasks:
     - name: Ensure python3 is installed
