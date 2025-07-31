@@ -15,7 +15,7 @@ resource "docker_image" "ubuntu_with_ssh" {
   name         = "ubuntu:22.04-ssh"
   build {
     context = "${path.module}"
-    dockerfile = "${path.module}/Dockerfile"
+    dockerfile = "Dockerfile"
   }
 }
 
