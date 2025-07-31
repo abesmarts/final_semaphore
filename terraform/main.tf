@@ -19,8 +19,8 @@ resource "docker_image" "ubuntu_with_ssh" {
   }
 }
 
-resource "docker_network" "semaphore_network" {
-  name = "semaphore_network"
+resource "docker_network" "monitoring-network" {
+  name = "monitoring-network"
 }
 
 resource "docker_container" "ansible_vm1" {
@@ -50,7 +50,7 @@ resource "docker_container" "ansible_vm1" {
   }
 
   networks_advanced {
-    name = docker_network.semaphore_network.name
+    name = docker_network.monitoring-network.name
   }
 
   rm = false
