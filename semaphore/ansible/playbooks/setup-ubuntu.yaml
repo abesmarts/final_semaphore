@@ -1,6 +1,6 @@
 ---
 - name: Setup Ubuntu System for Monitoring
-  hosts: all
+  hosts: ubuntu_vms
   become: true
   gather_facts: true
   
@@ -20,6 +20,8 @@
       - ca-certificates
       - gnupg
       - lsb-release
+      - sudo
+      - openssh-server
     
     python_packages:
       - psutil
@@ -40,6 +42,13 @@
         state: present
         update_cache: true
       tags: ['system']
+
+    - name: Ensure SSH service is running
+      service:
+        name: ssh
+        state: started
+        enabled: yes
+      tags: ['ssh']
     
     - name: Install Python packages
       pip:

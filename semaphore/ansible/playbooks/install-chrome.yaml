@@ -1,10 +1,15 @@
 ---
 - name: Install Google Chrome on Ubuntu
-  hosts: all
-  become: true
-  gather_facts: true
+  hosts: ubuntu_vms
+  become: yes
+  gather_facts: yes
   
   tasks:
+    - name: Ensure python3 is installed
+      apt:
+        name: python3
+        state: present
+
     - name: Install prerequisites for Chrome
       apt:
         name:
@@ -14,7 +19,7 @@
           - apt-transport-https
           - ca-certificates
         state: present
-        update_cache: true
+        update_cache: yes
       tags: ['prereqs']
     
     - name: Add Google Chrome GPG key
@@ -32,7 +37,7 @@
     
     - name: Update apt cache after adding Chrome repository
       apt:
-        update_cache: true
+        update_cache: yes
       tags: ['chrome']
     
     - name: Install Google Chrome
@@ -52,7 +57,7 @@
     - name: Get latest ChromeDriver version
       uri:
         url: "https://chromedriver.storage.googleapis.com/LATEST_RELEASE"
-        return_content: true
+        return_content: yes
       register: chromedriver_version
       tags: ['chromedriver']
     
@@ -67,7 +72,7 @@
       unarchive:
         src: /tmp/chromedriver.zip
         dest: /tmp
-        remote_src: true
+        remote_src: yes
       tags: ['chromedriver']
     
     - name: Move ChromeDriver to system PATH
@@ -75,7 +80,7 @@
         src: /tmp/chromedriver
         dest: /usr/local/bin/chromedriver
         mode: '0755'
-        remote_src: true
+        remote_src: yes
       tags: ['chromedriver']
     
     - name: Clean up ChromeDriver download files

@@ -11,54 +11,48 @@ provider "docker" {
   host = "unix:///var/run/docker.sock"
 }
 
-resource "docker_image" "ubuntu" {
-  name = "ubuntu:22.04"
+resource "docker_image" "ubuntu_with_ssh" {
+  name         = "ubuntu:22.04-ssh"
+  build {
+    context = "${path.module}"
+    dockerfile = "${path.module}/Dockerfile"
+  }
+}
+
+resource "docker_network" "semaphore_network" {
+  name = "semaphore_network"
 }
 
 resource "docker_container" "ansible_vm1" {
   name  = "ansible-vm1"
-  image = docker_image.ubuntu.image_id
-  
-  # Keep container running
-  command = ["tail", "-f", "/dev/null"]
-  
-  # Enable SSH access
+  image = docker_image.ubuntu_with_ssh.image_id
+
+  command = ["/usr/sbin/sshd", "-D"]
+
   ports {
     internal = 22
     external = 2222
   }
-  
-  # Environment variables
+
   env = [
     "DEBIAN_FRONTEND=noninteractive"
   ]
-  
-  # Add labels for log collection
+
   labels {
     label = "filebeat_ingest"
     value = "true"
   }
-  
-  # Mount volumes for shared data
+
   volumes {
     host_path      = "/var/run/docker.sock"
     container_path = "/var/run/docker.sock"
     read_only      = true
   }
-  
-  # Network configuration
+
   networks_advanced {
-    name = "semaphore_network"
+    name = docker_network.semaphore_network.name
   }
-  
-  # Auto-remove when stopped
+
   rm = false
-  
-  # Restart policy
   restart = "unless-stopped"
 }
-
-# Create Docker network
-#resource "docker_network" "monitoring-network" {
- # name = "monitoring-network"
-#}
