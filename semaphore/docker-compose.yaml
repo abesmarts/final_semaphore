@@ -104,7 +104,7 @@ services:
 
   # Semaphore UI - Automation management interface
   semaphore:
-    image: semaphoreui/semaphore:v2.15.
+    image: semaphoreui/semaphore:v2.15.4
     container_name: semaphore-ui
     environment:
       - SEMAPHORE_DB_DIALECT=bolt
@@ -116,9 +116,9 @@ services:
     volumes:
       # - semaphore/config:/etc/semaphore/config
       # - semaphore/ansible:/var/lib/semaphore/ansible
-      - semaphore_data:/var/lib/semaphore
-      - semaphore_config:/etc/semaphore
-      - semaphore_tmp:/tmp/semaphore
+      - semaphore-data:/var/lib/semaphore
+      - semaphore-config:/etc/semaphore
+      - semaphore-tmp:/tmp/semaphore
       - ansible://var/lib/semaphore/ansible
       - ../terraform:/var/lib/semaphore/terraform
       - ../python-scripts:/var/lib/semaphore/scripts
@@ -137,6 +137,10 @@ volumes:
   elasticsearch-data:
     driver: local
   semaphore-data:
+    driver: local
+  semaphore-config:
+    driver: local
+  semaphore-tmp:
     driver: local
   filebeat-data:
     driver: local
