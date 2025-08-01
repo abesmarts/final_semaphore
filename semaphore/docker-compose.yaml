@@ -60,7 +60,8 @@ services:
     environment:
       - "LS_JAVA_OPTS=-Xmx1g -Xms1g"
     volumes:
-      - logstash-config:/usr/share/logstash/config
+      - ../logstash-config:/usr/share/logstash/config
+      - ../logstash-data:/usr/share/logstash/data
       # - logstash/config/logstash.yaml:/usr/share/logstash/config/logstash.yaml:ro
     ports:
       - "5044:5044"  # Beats input (receives from Filebeat)
