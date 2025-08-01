@@ -3,8 +3,6 @@
   "web_port": "3000",
   "interface": "0.0.0.0:3000",
   "tmp_path": "/tmp/semaphore",
-  "cookie_hash": "change-this-to-a-random-string",
-  "cookie_encryption": "change-this-to-a-32-char-string",
   "email_sender": "semaphore@localhost",
   "email_host": "localhost",
   "email_port": "587",

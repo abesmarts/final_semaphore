@@ -1,6 +1,0 @@
-- hosts: site
-  semaphore:
-    ansible:
-      roles:
-        system-se
-       - deploy
