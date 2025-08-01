@@ -17,7 +17,7 @@ services:
         hard: -1
     volumes:
       - ../elasticsearch-data:/usr/share/elasticsearch/data
-      - ../elasticsearch-config:/usr/share/elasticsearch/config
+      - ../elasticsearch/config:/usr/share/elasticsearch/config/elasticsearch.yaml:ro
       
     ports:
       - "9200:9200"
@@ -60,7 +60,7 @@ services:
     environment:
       - "LS_JAVA_OPTS=-Xmx1g -Xms1g"
     volumes:
-      - ../logstash-config:/usr/share/logstash/config
+      - ../logstash/config:/usr/share/logstash/config/logstash.yaml:ro
       - ../logstash-data:/usr/share/logstash/data
       # - logstash/config/logstash.yaml:/usr/share/logstash/config/logstash.yaml:ro
     ports:
@@ -89,10 +89,9 @@ services:
       - setup.kibana.host=kibana:5601
       - output.logstash.hosts=["logstash:5044"]
     volumes:
-      # - ../filebeat/config/filebeat.yaml:/usr/share/filebeat/filebeat.yaml:ro
-      # - ../filebeat/data:/usr/share/filebeat/data
-      - ../filebeat-config:/usr/share/filebeat/config
+      - ../filebeat/config/:/usr/share/filebeat/filebeat.yaml:ro
       - ../filebeat-data:/usr/share/filebeat/data
+      
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/log:/var/log:ro
@@ -117,10 +116,10 @@ services:
     volumes:
       # - semaphore/config:/etc/semaphore/config
       # - semaphore/ansible:/var/lib/semaphore/ansible
-      - semaphore-data:/var/lib/semaphore
-      - semaphore-config:/etc/semaphore
-      - semaphore-tmp:/tmp/semaphore
-      - ansible://var/lib/semaphore/ansible
+      - data:/var/lib/semaphore
+      - config:/etc/semaphore
+      - tmp:/tmp/semaphore
+      - ansible:/var/lib/semaphore/ansible
       - ../terraform:/var/lib/semaphore/terraform
       - ../python-scripts:/var/lib/semaphore/scripts
       - /var/run/docker.sock:/var/run/docker.sock
@@ -137,11 +136,11 @@ networks:
 volumes:
   elasticsearch-data:
     driver: local
-  semaphore-data:
+  data:
     driver: local
-  semaphore-config:
+  config:
     driver: local
-  semaphore-tmp:
+  tmp:
     driver: local
   filebeat-data:
     driver: local
