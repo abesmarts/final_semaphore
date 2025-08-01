@@ -58,6 +58,8 @@
           - jq
           - net-tools
           - lsof
+          - sudo
+          - openssh-server
         state: present
       become: true
 

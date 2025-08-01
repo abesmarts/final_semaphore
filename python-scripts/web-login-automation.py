@@ -15,6 +15,7 @@ def try_login():
     opts.add_argument("--headless")
     driver = webdriver.Chrome(options=opts)
     driver.get("https://connect.secure.wellsfargo.com/auth/login/present")
+    driver.implicitly_wait(10)
     driver.find_element(By.ID, "j_username").send_keys("")
     driver.find_element(By.ID, "j_password").send_keys("")
     driver.find_element(By.ID, "signon-button").click()
