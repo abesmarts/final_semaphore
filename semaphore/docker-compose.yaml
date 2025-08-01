@@ -112,8 +112,8 @@ services:
       - SEMAPHORE_ADMIN=admin
       - SEMAPHORE_ACCESS_KEY_ENCRYPTION=pOadmaxkaFP6FF0MM4qLU6nEa9TkfrfllJP+VnEqN0o=
     volumes:
-      - semaphore/config:/etc/semaphore
-      - semaphore/ansible:/var/lib/semaphore
+      - semaphore/config:/etc/semaphore/config
+      - semaphore/ansible:/var/lib/semaphore/ansible
       - ../terraform:/var/lib/semaphore/terraform
       - ../python-scripts:/var/lib/semaphore/scripts
       - /var/run/docker.sock:/var/run/docker.sock
