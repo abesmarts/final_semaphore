@@ -16,8 +16,8 @@ services:
         soft: -1
         hard: -1
     volumes:
-      - ../elasticsearch/data:/usr/share/elasticsearch/data
-      - ../elasticsearch/config/elasticsearch.yaml:/usr/share/elasticsearch/config/elasticsearch.yaml:ro
+      - ../elasticsearch-data:/usr/share/elasticsearch/data
+      - ../elasticsearch-config:/usr/share/elasticsearch/config
       
     ports:
       - "9200:9200"
@@ -39,7 +39,7 @@ services:
       - SERVER_NAME=kibana
       - SERVER_HOST=0.0.0.0
     volumes:
-      - ../kibana/config/kibana.yaml:/usr/share/kibana/config/kibana.yaml:ro
+      - ../kibana-config:/usr/share/kibana/config
     ports:
       - "5601:5601"
     networks:
@@ -60,8 +60,8 @@ services:
     environment:
       - "LS_JAVA_OPTS=-Xmx1g -Xms1g"
     volumes:
-      - ../logstash/config/logstash.conf:/usr/share/logstash/config/logstash.conf:ro
-      - ../logstash/config/logstash.yaml:/usr/share/logstash/config/logstash.yaml:ro
+      - logstash-config:/usr/share/logstash/config
+      # - logstash/config/logstash.yaml:/usr/share/logstash/config/logstash.yaml:ro
     ports:
       - "5044:5044"  # Beats input (receives from Filebeat)
       - "9600:9600"  # API port
@@ -88,8 +88,10 @@ services:
       - setup.kibana.host=kibana:5601
       - output.logstash.hosts=["logstash:5044"]
     volumes:
-      - ../filebeat/config/filebeat.yaml:/usr/share/filebeat/filebeat.yaml:ro
-      - ../filebeat/data:/usr/share/filebeat/data
+      # - ../filebeat/config/filebeat.yaml:/usr/share/filebeat/filebeat.yaml:ro
+      # - ../filebeat/data:/usr/share/filebeat/data
+      - ../filebeat-config:/usr/share/filebeat/config
+      - ../filebeat-data:/usr/share/filebeat/data
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/log:/var/log:ro
@@ -102,7 +104,7 @@ services:
 
   # Semaphore UI - Automation management interface
   semaphore:
-    image: semaphoreui/semaphore:v2.15.4
+    image: semaphoreui/semaphore:v2.15.
     container_name: semaphore-ui
     environment:
       - SEMAPHORE_DB_DIALECT=bolt
@@ -112,8 +114,12 @@ services:
       - SEMAPHORE_ADMIN=admin
       - SEMAPHORE_ACCESS_KEY_ENCRYPTION=pOadmaxkaFP6FF0MM4qLU6nEa9TkfrfllJP+VnEqN0o=
     volumes:
-      - semaphore/config:/etc/semaphore/config
-      - semaphore/ansible:/var/lib/semaphore/ansible
+      # - semaphore/config:/etc/semaphore/config
+      # - semaphore/ansible:/var/lib/semaphore/ansible
+      - semaphore_data:/var/lib/semaphore
+      - semaphore_config:/etc/semaphore
+      - semaphore_tmp:/tmp/semaphore
+      - ansible://var/lib/semaphore/ansible
       - ../terraform:/var/lib/semaphore/terraform
       - ../python-scripts:/var/lib/semaphore/scripts
       - /var/run/docker.sock:/var/run/docker.sock
@@ -135,4 +141,10 @@ volumes:
   filebeat-data:
     driver: local
   logstash-data:
+    driver: local
+  ansible:
+    driver: local
+  terraform:
+    driver: local
+  python-scripts: 
     driver: local
