@@ -14,7 +14,7 @@ RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/s
 
 # Create log directory for Semaphore
 RUN mkdir -p /var/log/semaphore && \
-    chown semaphore:semaphore /var/log/semaphore
+    chown 633 /var/log/semaphore
 
 # Switch back to semaphore user
 USER semaphore
