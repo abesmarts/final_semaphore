@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-cd /var/lib/semaphore/terraform
+cd /mnt/localproject/terraform
 tofu apply -auto-approve
 
 tofu output -json > tf_outputs.json
