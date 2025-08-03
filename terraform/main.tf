@@ -19,7 +19,9 @@ resource "docker_image" "ubuntu_with_ssh" {
   }
 }
 
-
+resource "docker_network" "monitoring-network" {
+  name = "monitoring-network"
+}
 
 resource "docker_container" "ansible_vm1" {
   name  = "ansible-vm1"
@@ -47,9 +49,7 @@ resource "docker_container" "ansible_vm1" {
     read_only      = true
   }
 
-  networks_advanced {
-    name = docker_network.monitoring-network.name
-  }
+ 
 
   rm = false
   restart = "unless-stopped"
