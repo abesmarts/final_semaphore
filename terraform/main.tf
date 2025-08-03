@@ -12,16 +12,14 @@ provider "docker" {
 }
 
 resource "docker_image" "ubuntu_with_ssh" {
-  name         = "ubuntu:22.04-ssh"
+  name = "ubuntu:22.04-ssh"
   build {
     context = "${path.module}"
     dockerfile = "Dockerfile"
   }
 }
 
-resource "docker_network" "monitoring-network" {
-  name = "monitoring-network"
-}
+
 
 resource "docker_container" "ansible_vm1" {
   name  = "ansible-vm1"
