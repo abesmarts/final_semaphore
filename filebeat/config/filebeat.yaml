@@ -1,36 +1,121 @@
-filebeat.version: 9.0.4
+# filebeat.version: 9.0.4
 
-# Filebeat inputs - collect logs from containers and files
+# # Filebeat inputs - collect logs from containers and files
+# filebeat.inputs:
+# - type: container
+#   enabled: true
+#   paths:
+#     - '/var/lib/docker/containers/*/*.log'
+#   fields:
+#     log_type: container_logs
+#     environment: development
+#   fields_under_root: true
+
+# - type: log
+#   enabled: true
+#   paths:
+#     - '/var/log/*.log'
+#   fields:
+#     log_type: system_logs
+#     environment: development
+#   fields_under_root: true
+
+# # Output to Logstash
+# output.logstash:
+#   hosts: ["logstash:5044"]
+
+# # Disable Elasticsearch output (since we're using Logstash)
+# output.elasticsearch:
+#   enabled: false
+
+# # Kibana configuration
+# setup.kibana:
+#   host: "kibana:5601"
+
+# # Logging
+# logging.level: info
+# logging.to_files: true
+# logging.files:
+#   path: /var/log/filebeat
+#   name: filebeat
+#   keepfiles: 7
+#   permissions: 0644
+
+# # Processors
+# processors:
+# - add_host_metadata:
+#     when.not.contains.tags: forwarded
+# - add_docker_metadata: ~
+
+# # Disable template loading since Logstash handles it
+# setup.template.enabled: false
+# setup.ilm.enabled: false
+
+# Filebeat Configuration
 filebeat.inputs:
-- type: container
+- type: docker
   enabled: true
-  paths:
-    - '/var/lib/docker/containers/*/*.log'
-  fields:
-    log_type: container_logs
-    environment: development
-  fields_under_root: true
+  containers.ids: '*'
+  containers.stream: "all"
+  
+  # Decode JSON logs
+  processors:
+    - decode_json_fields:
+        fields: ["message"]
+        target: ""
+        overwrite_keys: true
+        add_error_key: true
+        max_depth: 10
+    - add_docker_meta:
+        host: "unix:///var/run/docker.sock"
+    - add_host_meta:
+        when.not.contains.tags: forwarded
 
+# Additional log files
 - type: log
   enabled: true
   paths:
-    - '/var/log/*.log'
+    - /var/log/semaphore/*.log
   fields:
-    log_type: system_logs
-    environment: development
+    logtype: semaphore_file
+    service: semaphore
   fields_under_root: true
 
-# Output to Logstash
+# Autodiscover configuration
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      hints.enabled: true
+      templates:
+        - condition:
+            contains:
+              docker.container.labels.filebeat_ingest: "true"
+          config:
+            - type: container
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*.log
+              processors:
+                - add_docker_meta:
+                    host: "unix:///var/run/docker.sock"
+                - decode_json_fields:
+                    fields: ["message"]
+                    target: ""
+                    overwrite_keys: true
+
+# Processors
+processors:
+  - add_host_meta:
+      when.not.contains.tags: forwarded
+  - add_cloud_meta ~
+  - add_docker_meta ~
+  - add_kubernetes_meta ~
+
+# Output configuration
 output.logstash:
   hosts: ["logstash:5044"]
-
-# Disable Elasticsearch output (since we're using Logstash)
-output.elasticsearch:
-  enabled: false
-
-# Kibana configuration
-setup.kibana:
-  host: "kibana:5601"
+  timeout: 15
+  compression_level: 3
+  escape_html: false
 
 # Logging
 logging.level: info
@@ -41,12 +126,7 @@ logging.files:
   keepfiles: 7
   permissions: 0644
 
-# Processors
-processors:
-- add_host_metadata:
-    when.not.contains.tags: forwarded
-- add_docker_metadata: ~
-
-# Disable template loading since Logstash handles it
-setup.template.enabled: false
-setup.ilm.enabled: false
+# Monitoring
+monitoring.enabled: true
+monitoring.elasticsearch:
+  hosts: ["elasticsearch:9200"]
