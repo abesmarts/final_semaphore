@@ -175,7 +175,7 @@ services:
       SEMAPHORE_TASK_LOG_PATH: /var/log/semaphore/tasks.log
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ansible:/mnt/localproject/ansible:ro
+      - ./ansible:/mnt/localproject/ansible:ro
       - ../terraform:/mnt/localproject/terraform:ro
       - ../python-scripts:/mnt/localproject/scripts
       - semaphore_:/tmp/semaphore
